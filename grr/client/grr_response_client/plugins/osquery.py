@@ -1,4 +1,3 @@
-
 import logging
 import uuid
 import json
@@ -38,7 +37,9 @@ class OSQueryServiceInit(registry.InitHook):
       "distributed_plugin": "tls",
       "distributed_tls_read_endpoint": "/distributed_read",
       "distributed_tls_write_endpoint": "/distributed_write",
-      "distributed_interval": "60"
+      "distributed_interval": "60",
+      "config_plugin" : "tls",
+      "config_tls_refresh" : "60"
     }
 
   def RunOnce(self):
@@ -74,6 +75,8 @@ OSQUERY_DISTRIBUTED = {
     "queries": {},
     "node_invalid": False,
 }
+
+BUFFERED_RESULTS = {} 
 
 class OSQueryService(threading.Thread):
 
@@ -112,6 +115,36 @@ class OSQueryService(threading.Thread):
     logging.debug("Query Request %s awakened and returning data ..." % query_id)
     with self.waitingActionsLock:
       return self.waitingActions[query_id]
+
+  def scheduleQuery(self,query_id,query,interval):
+    global OSQUERY_CONFIG
+
+    logging.debug("Scheduling a query, query_id: %s, query: %s, interval: %d ..." % (query_id,query,interval))
+    OSQUERY_CONFIG["schedule"][query_id]={"query": query, "interval": interval}
+    logging.debug("dumping CONFIG ...")
+    logging.debug("\n%s" % json.dumps(OSQUERY_CONFIG, indent=2))
+    return "added to config list"
+
+  def removeScheduledQuery(self,query_id):
+    global OSQUERY_CONFIG
+    global BUFFERED_RESULTS
+
+    logging.debug("Removing query: %s ..." % (query_id))
+    OSQUERY_CONFIG["schedule"].pop(query_id,None)
+    BUFFERED_RESULTS.pop(query_id,None) 
+    return "Removed"
+
+  def pullScheduledQuery(self, query_id):
+    global BUFFERED_RESULTS
+    logging.debug("Pulling query: %s ..." % (query_id))
+    ToSend = BUFFERED_RESULTS[query_id]
+    BUFFERED_RESULTS.pop(query_id,None)
+    return ToSend
+
+  def listScheduledQueries(self):
+    global OSQUERY_CONFIG
+    logging.debug("Listing scheduled queries ...")
+    return OSQUERY_CONFIG["schedule"]
 
   def submitQueryResult(self, query_id, data):
     global OSQUERY_DISTRIBUTED
@@ -173,9 +206,20 @@ class OSQueryHandler(BaseHTTPRequestHandler):
             self.distributed_read(request)
         elif self.path == '/distributed_write':
             self.distributed_write(request)
+        elif self.path == '/create_squery':
+            self.create_squery(request)
         else:
             logging.error("Unrecognized path POSTed by osqueryd:  %s" % self.path)
             self._reply({})
+
+    def create_squery(self, request):
+        '''This endpoint is called by teh client_action to schecule a new query'''
+        logging.debug("create_squery, query_name: %s query: %s  interval: %d" % (request["query_name"],request["query"],request["interval"]))
+        OSQUERY_CONFIG["schedule"][request["query_name"]]={"query": request["query"], "interval": request["interval"]}
+        logging.debug("\n%s" % (json.dumps(OSQUERY_CONFIG, indent=2)))
+        self._reply({})
+
+
 
     def enroll(self, request):
         '''A basic enrollment endpoint'''
@@ -220,7 +264,8 @@ class OSQueryHandler(BaseHTTPRequestHandler):
         if "node_key" not in request or request["node_key"] not in self.enrolled_clients:
             self._reply({"node_invalid": True})
             return
-        self._reply(OSQUERY_DISTRIBUTED)
+        else:
+          self._reply(OSQUERY_DISTRIBUTED)
 
     def distributed_write(self, request):
         '''A basic distributed write endpoint'''
@@ -233,6 +278,19 @@ class OSQueryHandler(BaseHTTPRequestHandler):
 
     def log(self, request):
         global osQueryService
+        global BUFFERED_RESULTS
+        global OSQUERY_CONFIG
+
+        for entry in request['data']:
+          # check if this log entry is a result of a scheduled query
+          if 'name' in entry and entry['name'] in OSQUERY_CONFIG['schedule']:
+            # If this is a new scheduled query running for the first time, create a key for it in BUFFERED_RESULTS
+            if entry['name'] not in BUFFERED_RESULTS:
+              BUFFERED_RESULTS.update({entry['name']:[]})
+            # add the new entry
+            BUFFERED_RESULTS[entry['name']].append(entry)
+            logging.debug("BUFFERED_RESULTS updated.. dumping buffer ...")
+            logging.debug("\n%s" % (json.dumps(BUFFERED_RESULTS, indent=2)))
         self._reply({})
 
     def _reply(self, response):

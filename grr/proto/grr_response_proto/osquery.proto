@@ -4,12 +4,60 @@ syntax = "proto2";
 
 import "grr_response_proto/semantic.proto";
 
+message OSQueryScheduledQueryArgs {
+  required string query_id = 1 [(sem_type) = {
+      description: "Query ID"
+    }];
+  required string query = 2 [(sem_type) = {
+      description: "OSQuery SQL statement; passed as a string."
+    }];
+  required uint32 interval = 3 [(sem_type) = {
+      description: "interval in seconds"
+    }];
+}
+
+message OSQueryScheduledQueryResult {
+  optional string status = 1;
+}
+
+
 message OSQueryRunQueryArgs {
   optional string query = 1 [(sem_type) = {
       description: "OSQuery SQL statement; passed as a string."
     }];
 }
 
+message OSQueryRemoveScheduledQueryArgs {
+  optional string query_id = 1 [(sem_type) = {
+      description: "Query ID"
+    }];
+}
+
+message OSQueryRemoveScheduledQueryResult {
+  optional string status = 1;
+}
+
+message OSQueryListScheduledQueriesResult {
+  optional string query_id = 1;
+  optional string query = 2;
+  optional uint32 interval = 3;
+}
+
+message OSQueryPullScheduledQueryArgs {
+  optional string query_id = 1 [(sem_type) = {
+      description: "Query ID"
+    }];
+}
+
+message OSQueryPullScheduledQueryResult {
+  optional string name = 1;
+  optional string calendarTime = 2;
+  optional string counter = 3;
+  optional string epoch = 4;
+  optional string unixTime = 5;
+  optional string action = 6;
+  optional OSQueryRunQueryResult row = 7;
+}
 
 message OSQueryRunQueryResult {
   optional string error_msg = 1;

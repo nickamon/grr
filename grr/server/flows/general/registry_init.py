@@ -33,3 +33,7 @@ from grr.server.flows.general import windows_vsc
 from grr.server.flows.general import yara_flows
 
 from grr.server.flows.osquery import runquery
+from grr.server.flows.osquery import scheduledquery
+from grr.server.flows.osquery import removescheduledquery
+from grr.server.flows.osquery import listscheduledqueries
+from grr.server.flows.osquery import pullscheduledquery
