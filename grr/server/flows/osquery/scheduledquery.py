@@ -9,6 +9,7 @@ Created on April 7, 2018
 from grr.lib.rdfvalues import osquery as rdf_osquery
 from grr.server import flow
 from grr.server import osquery_stubs
+from grr.server.flows.osquery import osqueryCron
 
 
 class ScheduledQuery(flow.GRRFlow):
@@ -25,8 +26,12 @@ class ScheduledQuery(flow.GRRFlow):
       osquery_stubs.ExecuteScheduledQuery,
       query_id=self.args.query_id,
       query=self.args.query,
-      interval=self.args.interval,
+      interval=self.args.interval*60,
       next_state="ValidateSQLResult")
+
+    interval=str(self.args.interval)+"m"
+    cron=osqueryCron.ScheduledQuery()
+    cron.scheduleCron(interval, self.args.query_id, self.client_id, self.token)
 
   @flow.StateHandler()
   def ValidateSQLResult(self, responses):
@@ -42,4 +47,3 @@ class ScheduledQuery(flow.GRRFlow):
   @flow.StateHandler()
   def End(self):
     self.Log("Successfully executed SQL")
-

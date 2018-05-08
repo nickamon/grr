@@ -9,7 +9,7 @@ Created on April 7, 2018
 from grr.lib.rdfvalues import osquery as rdf_osquery
 from grr.server import flow
 from grr.server import osquery_stubs
-
+from grr.server.flows.osquery import osqueryCron
 
 class RemoveScheduledQuery(flow.GRRFlow):
   """Retrieve system data from OSQuery"""
@@ -26,6 +26,10 @@ class RemoveScheduledQuery(flow.GRRFlow):
       query_id=self.args.query_id,
       next_state="ValidateSQLResult")
 
+    job="aff4:/cron/ScheduleOSQueryPull"+str(self.args.query_id)
+    cron=osqueryCron.ScheduledQuery()
+    cron.removeCron(job, self.token)
+
   @flow.StateHandler()
   def ValidateSQLResult(self, responses):
     if not responses.success:
@@ -40,4 +44,3 @@ class RemoveScheduledQuery(flow.GRRFlow):
   @flow.StateHandler()
   def End(self):
     self.Log("Successfully executed SQL")
-

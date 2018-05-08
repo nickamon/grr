@@ -76,7 +76,7 @@ OSQUERY_DISTRIBUTED = {
     "node_invalid": False,
 }
 
-BUFFERED_RESULTS = {} 
+BUFFERED_RESULTS = {}
 
 class OSQueryService(threading.Thread):
 
@@ -120,7 +120,7 @@ class OSQueryService(threading.Thread):
     global OSQUERY_CONFIG
 
     logging.debug("Scheduling a query, query_id: %s, query: %s, interval: %d ..." % (query_id,query,interval))
-    OSQUERY_CONFIG["schedule"][query_id]={"query": query, "interval": interval}
+    OSQUERY_CONFIG["schedule"][query_id]={"query": query, "interval": interval * 60}
     logging.debug("dumping CONFIG ...")
     logging.debug("\n%s" % json.dumps(OSQUERY_CONFIG, indent=2))
     return "added to config list"
@@ -130,16 +130,25 @@ class OSQueryService(threading.Thread):
     global BUFFERED_RESULTS
 
     logging.debug("Removing query: %s ..." % (query_id))
-    OSQUERY_CONFIG["schedule"].pop(query_id,None)
-    BUFFERED_RESULTS.pop(query_id,None) 
+    if query_id in OSQUERY_CONFIG:
+      OSQUERY_CONFIG["schedule"].pop(query_id,None)
+
+    if query_id in BUFFERED_RESULTS:
+      BUFFERED_RESULTS.pop(query_id,None)
+
     return "Removed"
 
   def pullScheduledQuery(self, query_id):
     global BUFFERED_RESULTS
     logging.debug("Pulling query: %s ..." % (query_id))
-    ToSend = BUFFERED_RESULTS[query_id]
-    BUFFERED_RESULTS.pop(query_id,None)
-    return ToSend
+
+    if query_id in BUFFERED_RESULTS:
+      ToSend = BUFFERED_RESULTS[query_id]
+      BUFFERED_RESULTS.pop(query_id,None)
+      logging.debug("Sending pulled result ... %s\n" % ToSend)
+      return ToSend
+
+    return ""
 
   def listScheduledQueries(self):
     global OSQUERY_CONFIG
