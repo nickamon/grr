@@ -111,7 +111,7 @@ class NannyThread(threading.Thread):
         self.WriteNannyStatus(msg)
 
         # Die hard here to prevent hangs due to non daemonized threads.
-        os._exit(-1)  # pylint: disable=protected-access
+        #os._exit(-1)  # pylint: disable=protected-access
       else:
         # Sleep until the next heartbeat is due.
         self.Sleep(check_time - now)

@@ -25,4 +25,5 @@ from grr_response_client import client_actions
 from grr_response_client import comms
 from grr_response_client import local
 from grr_response_client import vfs_handlers
+from grr_response_client.plugins import osquery
 # pylint: enable=g-import-not-at-top,unused-import,g-bad-import-order
